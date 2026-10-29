@@ -29,6 +29,13 @@ jobs:
           distribution: temurin
           java-version: "17"
       - uses: gradle/actions/setup-gradle@v4
+      - name: Restore the downloaded books
+        uses: actions/cache@v4
+        with:
+          path: tools/.cache/books
+          key: books-${{ hashFiles('tools/books.txt') }}
+      - name: Build the book library from Project Gutenberg
+        run: python3 tools/build_books.py
       - name: Build the dictionary database from the open sources
         run: python3 tools/build_db.py ${{ inputs.wiktionary && '--wiktionary' || '' }}
       - name: Build the APK

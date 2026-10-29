@@ -67,6 +67,7 @@ import androidx.compose.ui.unit.dp
 import io.github.akrishna87.dictionary.Definition
 import io.github.akrishna87.dictionary.Detail
 import io.github.akrishna87.dictionary.DictionaryViewModel
+import io.github.akrishna87.dictionary.LibraryPage
 import io.github.akrishna87.dictionary.Source
 import io.github.akrishna87.dictionary.WordEntry
 import java.util.Locale
@@ -81,7 +82,9 @@ fun DictionaryApp(vm: DictionaryViewModel) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         bottomBar = {
-            if (detail == null) {
+            // The reader takes the whole screen.
+            val reading = tab == 1 && vm.libraryPage is LibraryPage.Reader
+            if (detail == null && !reading) {
                 NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainer) {
                     NavigationBarItem(
                         selected = tab == 0, onClick = { tab = 0 },

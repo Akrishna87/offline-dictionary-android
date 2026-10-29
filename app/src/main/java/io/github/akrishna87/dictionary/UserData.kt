@@ -98,6 +98,32 @@ class UserData(context: Context) {
         return map
     }
 
+    // --- Books -----------------------------------------------------------------
+
+    fun progress(): Map<Int, Progress> = readMap(PROGRESS) { it.toString() }.mapNotNull { (id, v) ->
+        val p = v.split(",")
+        if (p.size == 4) id.toInt() to Progress(p[0].toInt(), p[1].toInt(), p[2].toInt(), p[3].toLong()) else null
+    }.toMap()
+
+    fun saveProgress(bookId: Int, p: Progress): Map<Int, Progress> {
+        val map = progress().toMutableMap()
+        map[bookId] = p
+        val o = JSONObject()
+        map.forEach { (id, v) -> o.put(id.toString(), "${v.chapter},${v.paragraph},${v.percent},${v.at}") }
+        prefs.edit { putString(PROGRESS, o.toString()) }
+        return map
+    }
+
+    fun readerSettings() = ReaderSettings(
+        fontSize = prefs.getInt(READER_SIZE, ReaderSettings().fontSize),
+        theme = ReaderTheme.entries.firstOrNull { it.name == prefs.getString(READER_THEME, null) } ?: ReaderTheme.Night,
+    )
+
+    fun saveReaderSettings(s: ReaderSettings) = prefs.edit {
+        putInt(READER_SIZE, s.fontSize)
+        putString(READER_THEME, s.theme.name)
+    }
+
     // --- Helpers --------------------------------------------------------------
 
     private fun readLines(key: String): List<String> =
@@ -115,6 +141,9 @@ class UserData(context: Context) {
         private const val SHELVES = "shelves"
         private const val NOTES = "notes"
         private const val LEVELS = "levels"
+        private const val PROGRESS = "progress"
+        private const val READER_SIZE = "reader_size"
+        private const val READER_THEME = "reader_theme"
         private const val MAX_HISTORY = 100
     }
 }

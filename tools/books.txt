@@ -1,0 +1,55 @@
+# Gutenberg ebook number | the title we expect (only used to warn if the number points at something else)
+1342 | Pride and Prejudice
+158  | Emma
+161  | Sense and Sensibility
+105  | Persuasion
+1260 | Jane Eyre
+768  | Wuthering Heights
+98   | A Tale of Two Cities
+1400 | Great Expectations
+730  | Oliver Twist
+46   | A Christmas Carol
+11   | Alice's Adventures in Wonderland
+12   | Through the Looking-Glass
+84   | Frankenstein
+345  | Dracula
+43   | The Strange Case of Dr. Jekyll and Mr. Hyde
+174  | The Picture of Dorian Gray
+844  | The Importance of Being Earnest
+1661 | The Adventures of Sherlock Holmes
+2852 | The Hound of the Baskervilles
+244  | A Study in Scarlet
+2701 | Moby Dick
+74   | The Adventures of Tom Sawyer
+76   | Adventures of Huckleberry Finn
+33   | The Scarlet Letter
+120  | Treasure Island
+35   | The Time Machine
+36   | The War of the Worlds
+514  | Little Women
+45   | Anne of Green Gables
+113  | The Secret Garden
+215  | The Call of the Wild
+236  | The Jungle Book
+16   | Peter Pan
+55   | The Wonderful Wizard of Oz
+521  | Robinson Crusoe
+829  | Gulliver's Travels
+219  | Heart of Darkness
+5200 | Metamorphosis
+2554 | Crime and Punishment
+2814 | Dubliners
+1513 | Romeo and Juliet
+1524 | Hamlet
+1533 | Macbeth
+1514 | A Midsummer Night's Dream
+1727 | The Odyssey
+1497 | The Republic
+2680 | Meditations
+132  | The Art of War
+1232 | The Prince
+205  | Walden
+148  | The Autobiography of Benjamin Franklin
+23   | Narrative of the Life of Frederick Douglass
+2591 | Grimms' Fairy Tales
+1228 | On the Origin of Species

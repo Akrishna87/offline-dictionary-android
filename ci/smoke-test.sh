@@ -17,13 +17,15 @@ wait_for() { # text, seconds
   for _ in $(seq "$2"); do ui | grep -q "$1" && return 0; sleep 1; done
   echo "FAIL: never saw '$1' on screen"; ui | head -c 3000; shot "fail-$(echo "$1" | tr -c 'A-Za-z0-9' _)"; exit 1
 }
-tap_text() { # tap the centre of the first node whose text matches
+tap_text() { # text [dx dy]: tap the centre of the first node starting with text, or dx,dy from its top-left corner
   local b
   b=$(ui | python3 -c "
 import re,sys
 x=sys.stdin.read()
 m=re.search(r'text=\"$1[^\"]*\"[^>]*bounds=\"\[(\d+),(\d+)\]\[(\d+),(\d+)\]\"',x)
-print((int(m[1])+int(m[3]))//2,(int(m[2])+int(m[4]))//2) if m else sys.exit(1)") || true
+if not m: sys.exit(1)
+dx,dy='${2:-}','${3:-}'
+print(int(m[1])+int(dx),int(m[2])+int(dy)) if dx else print((int(m[1])+int(m[3]))//2,(int(m[2])+int(m[4]))//2)") || true
   [ -n "$b" ] || { echo "FAIL: nothing on screen matching '$1'"; shot "fail-tap"; exit 1; }
   adb shell input tap $b
 }
@@ -68,9 +70,28 @@ tap_text "Library"
 wait_for "Browse A" 10
 wait_for "Shelves" 5
 shot 6-library
+
+wait_for "Books" 5
+tap_text "See all"
+wait_for "public-domain classics" 10
+tap_text "Find a title"
+adb shell input text "pride"
+sleep 1
+tap_text "Pride and Prejudice"
+wait_for "universally acknowledged" 20
+shot 7-reader
+tap_text "It is a truth" 60 45 # tap the word "It"
+wait_for "Full entry" 10
+shot 8-define-word
+tap_text "Full entry"
+wait_for "My note" 10 # the full dictionary entry
+adb shell input keyevent KEYCODE_BACK # entry -> book
+wait_for "universally acknowledged" 10
+adb shell input keyevent KEYCODE_BACK # book -> library
+wait_for "Browse A" 10
 tap_text "Browse A"
 wait_for "Pick a letter" 10
 tap_text "Z"
 wait_for "words\|Browsing" 10
-shot 7-browse
+shot 9-browse
 echo "smoke test passed"

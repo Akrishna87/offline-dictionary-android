@@ -2,10 +2,8 @@ package io.github.akrishna87.dictionary
 
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
-import androidx.core.content.pm.PackageInfoCompat
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.io.File
 
 /** Where a definition came from. [code] is what `tools/build_db.py` stores in the database. */
 enum class Source(val code: String, val label: String, val blurb: String) {
@@ -54,23 +52,7 @@ data class Suggestion(val word: String, val common: Boolean)
  * private storage on first launch (and again when the app updates, since the data may have).
  */
 class DictionaryRepository(private val context: Context) {
-    private val db: SQLiteDatabase by lazy { open() }
-
-    private fun open(): SQLiteDatabase {
-        val file = context.getDatabasePath(DB_NAME)
-        val version = PackageInfoCompat.getLongVersionCode(
-            context.packageManager.getPackageInfo(context.packageName, 0),
-        )
-        val stamp = File(file.parentFile, "$DB_NAME.version")
-        if (!file.exists() || stamp.takeIf { it.exists() }?.readText() != version.toString()) {
-            file.parentFile?.mkdirs()
-            val tmp = File(file.parentFile, "$DB_NAME.part")
-            context.assets.open(DB_NAME).use { input -> tmp.outputStream().use { input.copyTo(it) } }
-            tmp.renameTo(file)
-            stamp.writeText(version.toString())
-        }
-        return SQLiteDatabase.openDatabase(file.path, null, SQLiteDatabase.OPEN_READONLY)
-    }
+    private val db: SQLiteDatabase by lazy { openAssetDatabase(context, DB_NAME) }
 
     /** Words that start with [query], common words first, then shorter ones. */
     suspend fun prefix(query: String, limit: Int = 50): List<Suggestion> = withContext(Dispatchers.IO) {

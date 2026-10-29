@@ -74,11 +74,13 @@ fun LibraryScreen(vm: DictionaryViewModel) {
         LibraryPage.Browse -> BrowsePage(vm)
         is LibraryPage.Letter -> LetterPage(vm, page.letter)
         LibraryPage.Review -> ReviewPage(vm)
+        LibraryPage.Books -> BooksPage(vm)
+        is LibraryPage.Reader -> ReaderPage(vm, page.bookId)
     }
 }
 
 @Composable
-private fun PageTitle(title: String, subtitle: String? = null, onBack: (() -> Unit)? = null, actions: @Composable () -> Unit = {}) {
+internal fun PageTitle(title: String, subtitle: String? = null, onBack: (() -> Unit)? = null, actions: @Composable () -> Unit = {}) {
     Row(Modifier.fillMaxWidth().padding(4.dp, 8.dp, 8.dp, 0.dp), verticalAlignment = Alignment.CenterVertically) {
         if (onBack != null) {
             IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
@@ -102,6 +104,7 @@ private fun LibraryHome(vm: DictionaryViewModel) {
     Column(Modifier.fillMaxSize()) {
         PageTitle("Library", "${vm.shelves.sumOf { it.words.size }} words on your shelves")
         LazyColumn(contentPadding = PaddingValues(16.dp, 12.dp, 16.dp, 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            if (vm.books.isNotEmpty()) item { BooksShelfSection(vm) }
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     BigTile(Icons.Default.SortByAlpha, "Browse A–Z", "The whole dictionary", Modifier.weight(1f)) {

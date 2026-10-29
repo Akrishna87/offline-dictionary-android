@@ -24,11 +24,14 @@ sealed interface LibraryPage {
     data object Browse : LibraryPage
     data class Letter(val letter: String) : LibraryPage
     data object Review : LibraryPage
+    data object Books : LibraryPage
+    data class Reader(val bookId: Int) : LibraryPage
 }
 
 class DictionaryViewModel(app: Application) : AndroidViewModel(app) {
     private val repo = DictionaryRepository(app)
     private val user = UserData(app)
+    private val bookRepo = BookRepository(app)
 
     var query by mutableStateOf("")
         private set
@@ -43,6 +46,12 @@ class DictionaryViewModel(app: Application) : AndroidViewModel(app) {
     var levels by mutableStateOf(user.levels())
         private set
     var libraryPage by mutableStateOf<LibraryPage>(LibraryPage.Home)
+    var books by mutableStateOf<List<Book>>(emptyList())
+        private set
+    var progress by mutableStateOf(user.progress())
+        private set
+    var reader by mutableStateOf(user.readerSettings())
+        private set
     var history by mutableStateOf(user.history())
         private set
     var wordOfTheDay by mutableStateOf<String?>(null)
@@ -54,6 +63,7 @@ class DictionaryViewModel(app: Application) : AndroidViewModel(app) {
     private var searchJob: Job? = null
 
     init {
+        viewModelScope.launch { books = bookRepo.books() }
         viewModelScope.launch {
             wordOfTheDay = runCatching { repo.wordOfTheDay(LocalDate.now().toEpochDay()) }.getOrNull()
         }
@@ -128,6 +138,23 @@ class DictionaryViewModel(app: Application) : AndroidViewModel(app) {
     fun recordReview(word: String, known: Boolean) {
         levels = user.recordReview(word, known)
     }
+
+    /** The book read most recently, if any. */
+    val continueReading: Book?
+        get() = progress.maxByOrNull { it.value.at }?.key?.let { id -> books.firstOrNull { it.id == id } }
+
+    fun saveProgress(bookId: Int, chapter: Int, paragraph: Int, percent: Int) {
+        progress = user.saveProgress(bookId, Progress(chapter, paragraph, percent, System.currentTimeMillis()))
+    }
+
+    fun setReader(settings: ReaderSettings) {
+        reader = settings
+        user.saveReaderSettings(settings)
+    }
+
+    suspend fun chapters(bookId: Int) = bookRepo.chapters(bookId)
+
+    suspend fun paragraphs(bookId: Int, chapter: Int) = bookRepo.paragraphs(bookId, chapter)
 
     suspend fun preview(word: String) = repo.lookup(word)
 
