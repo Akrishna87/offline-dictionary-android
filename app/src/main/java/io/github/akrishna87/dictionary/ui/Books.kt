@@ -330,19 +330,19 @@ fun ReaderPage(vm: DictionaryViewModel, bookId: Int) {
                         Text("Text size", Modifier.weight(1f))
                         OutlinedButton(
                             enabled = settings.fontSize > ReaderSettings.MIN_SIZE,
-                            onClick = { vm.setReader(settings.copy(fontSize = settings.fontSize - 1)) },
+                            onClick = { vm.updateReader(settings.copy(fontSize = settings.fontSize - 1)) },
                         ) { Text("A−") }
                         Text("${settings.fontSize}", Modifier.padding(horizontal = 12.dp))
                         OutlinedButton(
                             enabled = settings.fontSize < ReaderSettings.MAX_SIZE,
-                            onClick = { vm.setReader(settings.copy(fontSize = settings.fontSize + 1)) },
+                            onClick = { vm.updateReader(settings.copy(fontSize = settings.fontSize + 1)) },
                         ) { Text("A+") }
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         ReaderTheme.entries.forEach { t ->
                             FilterChip(
                                 selected = settings.theme == t,
-                                onClick = { vm.setReader(settings.copy(theme = t)) },
+                                onClick = { vm.updateReader(settings.copy(theme = t)) },
                                 label = { Text(t.label) },
                             )
                         }

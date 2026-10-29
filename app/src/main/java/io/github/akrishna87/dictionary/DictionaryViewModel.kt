@@ -147,7 +147,7 @@ class DictionaryViewModel(app: Application) : AndroidViewModel(app) {
         progress = user.saveProgress(bookId, Progress(chapter, paragraph, percent, System.currentTimeMillis()))
     }
 
-    fun setReader(settings: ReaderSettings) {
+    fun updateReader(settings: ReaderSettings) {
         reader = settings
         user.saveReaderSettings(settings)
     }
