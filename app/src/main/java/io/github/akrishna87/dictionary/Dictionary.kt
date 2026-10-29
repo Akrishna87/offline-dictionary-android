@@ -112,6 +112,16 @@ class DictionaryRepository(private val context: Context) {
         scored.sortedWith(compareBy({ it.first }, { it.second }, { it.third })).take(limit).map { it.third }
     }
 
+    /** Headwords starting with [letter], alphabetical, for browsing the dictionary like a book. */
+    suspend fun page(letter: String, offset: Int, limit: Int): List<String> = withContext(Dispatchers.IO) {
+        val l = normalize(letter)
+        if (l.isEmpty()) return@withContext emptyList()
+        db.rawQuery(
+            "SELECT word FROM words WHERE lc >= ? AND lc < ? ORDER BY lc LIMIT ? OFFSET ?",
+            arrayOf(l, l + '\uffff', limit.toString(), offset.toString()),
+        ).use { c -> buildList { while (c.moveToNext()) add(c.getString(0)) } }
+    }
+
     /** A different common word every day; the same all day. */
     suspend fun wordOfTheDay(epochDay: Long): String? = withContext(Dispatchers.IO) {
         val count = scalar("SELECT COUNT(*) FROM words WHERE common = 1 AND length(lc) >= 5 AND lc NOT LIKE '% %'")

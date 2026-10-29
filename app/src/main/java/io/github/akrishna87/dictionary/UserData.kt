@@ -2,40 +2,119 @@ package io.github.akrishna87.dictionary
 
 import android.content.Context
 import androidx.core.content.edit
+import org.json.JSONArray
+import org.json.JSONObject
 
-/** Saved words and search history, kept in the app's SharedPreferences (newest first). */
+/** A named collection of words in the user's library. Newest words first. */
+data class Shelf(val name: String, val words: List<String>)
+
+/**
+ * Everything personal, kept in the app's SharedPreferences: search history, the library's
+ * shelves, notes on words, and how well each word is known (for review).
+ */
 class UserData(context: Context) {
     private val prefs = context.getSharedPreferences("user", Context.MODE_PRIVATE)
 
-    fun favourites(): List<String> = read(FAVOURITES)
-    fun history(): List<String> = read(HISTORY)
+    // --- Search history -------------------------------------------------------
 
-    fun toggleFavourite(word: String): List<String> {
-        val list = favourites().toMutableList()
-        if (!list.removeAll { it.equals(word, ignoreCase = true) }) list.add(0, word)
-        write(FAVOURITES, list)
-        return list
-    }
+    fun history(): List<String> = readLines(HISTORY)
 
     fun addHistory(word: String): List<String> {
         val list = history().toMutableList()
         list.removeAll { it.equals(word, ignoreCase = true) }
         list.add(0, word)
         val trimmed = list.take(MAX_HISTORY)
-        write(HISTORY, trimmed)
+        prefs.edit { putString(HISTORY, trimmed.joinToString("\n")) }
         return trimmed
     }
 
-    fun clearHistory() = write(HISTORY, emptyList())
+    fun clearHistory() = prefs.edit { putString(HISTORY, "") }
 
-    private fun read(key: String): List<String> =
+    // --- Shelves --------------------------------------------------------------
+
+    /** The default shelf ([DEFAULT_SHELF]) is always first. Words starred before shelves existed move into it. */
+    fun shelves(): List<Shelf> {
+        val raw = prefs.getString(SHELVES, null)
+        val list = if (raw != null) {
+            val array = JSONArray(raw)
+            (0 until array.length()).map { i ->
+                val o = array.getJSONObject(i)
+                Shelf(o.getString("name"), o.getJSONArray("words").let { w -> (0 until w.length()).map(w::getString) })
+            }
+        } else {
+            listOf(Shelf(DEFAULT_SHELF, readLines("favourites")))
+        }
+        return if (list.any { it.name == DEFAULT_SHELF }) list else listOf(Shelf(DEFAULT_SHELF, emptyList())) + list
+    }
+
+    fun toggleInShelf(shelf: String, word: String): List<Shelf> = update { list ->
+        list.map { s ->
+            if (s.name != shelf) s
+            else if (s.words.any { it.equals(word, ignoreCase = true) }) s.copy(words = s.words.filterNot { it.equals(word, ignoreCase = true) })
+            else s.copy(words = listOf(word) + s.words)
+        }
+    }
+
+    /** Returns null (and changes nothing) when the name is blank or already used. */
+    fun createShelf(name: String): List<Shelf>? {
+        val clean = name.trim().replace(Regex("\\s+"), " ")
+        if (clean.isEmpty() || shelves().any { it.name.equals(clean, ignoreCase = true) }) return null
+        return update { it + Shelf(clean, emptyList()) }
+    }
+
+    fun deleteShelf(name: String): List<Shelf> = update { list -> list.filterNot { it.name == name && name != DEFAULT_SHELF } }
+
+    private fun update(change: (List<Shelf>) -> List<Shelf>): List<Shelf> {
+        val list = change(shelves())
+        val array = JSONArray()
+        list.forEach { s ->
+            array.put(JSONObject().put("name", s.name).put("words", JSONArray(s.words)))
+        }
+        prefs.edit { putString(SHELVES, array.toString()) }
+        return list
+    }
+
+    // --- Notes ----------------------------------------------------------------
+
+    fun notes(): Map<String, String> = readMap(NOTES) { it.toString() }
+
+    fun setNote(word: String, text: String): Map<String, String> {
+        val map = notes().toMutableMap()
+        if (text.isBlank()) map.remove(word.lowercase()) else map[word.lowercase()] = text
+        prefs.edit { putString(NOTES, JSONObject(map as Map<*, *>).toString()) }
+        return map
+    }
+
+    // --- Review ---------------------------------------------------------------
+
+    /** 0 = new or forgotten … [MAX_LEVEL] = well known. */
+    fun levels(): Map<String, Int> = readMap(LEVELS) { (it as Number).toInt() }
+
+    fun recordReview(word: String, known: Boolean): Map<String, Int> {
+        val map = levels().toMutableMap()
+        val key = word.lowercase()
+        map[key] = if (known) minOf((map[key] ?: 0) + 1, MAX_LEVEL) else 0
+        prefs.edit { putString(LEVELS, JSONObject(map as Map<*, *>).toString()) }
+        return map
+    }
+
+    // --- Helpers --------------------------------------------------------------
+
+    private fun readLines(key: String): List<String> =
         prefs.getString(key, "")!!.split('\n').filter { it.isNotBlank() }
 
-    private fun write(key: String, list: List<String>) = prefs.edit { putString(key, list.joinToString("\n")) }
+    private fun <T> readMap(key: String, convert: (Any) -> T): Map<String, T> {
+        val o = JSONObject(prefs.getString(key, null) ?: "{}")
+        return o.keys().asSequence().associateWith { convert(o.get(it)) }
+    }
 
-    private companion object {
-        const val FAVOURITES = "favourites"
-        const val HISTORY = "history"
-        const val MAX_HISTORY = 100
+    companion object {
+        const val DEFAULT_SHELF = "Saved"
+        const val MAX_LEVEL = 5
+        private const val HISTORY = "history"
+        private const val SHELVES = "shelves"
+        private const val NOTES = "notes"
+        private const val LEVELS = "levels"
+        private const val MAX_HISTORY = 100
     }
 }

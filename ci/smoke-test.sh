@@ -51,6 +51,26 @@ wait_for "Showing the base form" 10
 shot 4-inflection
 
 tap_text "Thesaurus"
-wait_for "All synonyms" 10
+wait_for "All synonyms\|No synonyms\|Broader" 10 # which one depends on the word; the tab itself must work
 shot 5-thesaurus
+
+adb shell input keyevent KEYCODE_BACK # close the word; the search field still holds "abetted"
+wait_for "abetted" 10
+tap_text "abetted"
+adb shell input keyevent KEYCODE_MOVE_END KEYCODE_DEL KEYCODE_DEL KEYCODE_DEL KEYCODE_DEL KEYCODE_DEL KEYCODE_DEL KEYCODE_DEL KEYCODE_DEL
+adb shell input text "happy"
+adb shell input keyevent KEYCODE_ENTER
+wait_for "Antonyms" 10 # happy has antonyms (unhappy) under its definitions
+shot 5b-antonyms
+
+adb shell input keyevent KEYCODE_BACK # close the word
+tap_text "Library"
+wait_for "Browse A" 10
+wait_for "Shelves" 5
+shot 6-library
+tap_text "Browse A"
+wait_for "Pick a letter" 10
+tap_text "Z"
+wait_for "words\|Browsing" 10
+shot 7-browse
 echo "smoke test passed"

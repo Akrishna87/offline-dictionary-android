@@ -17,6 +17,15 @@ sealed interface Detail {
     data class Missing(val word: String, val similar: List<String>) : Detail
 }
 
+/** Which page of the Library tab is showing. Kept here so it survives opening a word and coming back. */
+sealed interface LibraryPage {
+    data object Home : LibraryPage
+    data class OfShelf(val name: String) : LibraryPage
+    data object Browse : LibraryPage
+    data class Letter(val letter: String) : LibraryPage
+    data object Review : LibraryPage
+}
+
 class DictionaryViewModel(app: Application) : AndroidViewModel(app) {
     private val repo = DictionaryRepository(app)
     private val user = UserData(app)
@@ -27,8 +36,13 @@ class DictionaryViewModel(app: Application) : AndroidViewModel(app) {
         private set
     var detail by mutableStateOf<Detail?>(null)
         private set
-    var favourites by mutableStateOf(user.favourites())
+    var shelves by mutableStateOf(user.shelves())
         private set
+    var notes by mutableStateOf(user.notes())
+        private set
+    var levels by mutableStateOf(user.levels())
+        private set
+    var libraryPage by mutableStateOf<LibraryPage>(LibraryPage.Home)
     var history by mutableStateOf(user.history())
         private set
     var wordOfTheDay by mutableStateOf<String?>(null)
@@ -79,11 +93,45 @@ class DictionaryViewModel(app: Application) : AndroidViewModel(app) {
         detail = null
     }
 
-    fun toggleFavourite(word: String) {
-        favourites = user.toggleFavourite(word)
+    fun isSaved(word: String) = isOnShelf(UserData.DEFAULT_SHELF, word)
+
+    fun toggleSaved(word: String) = toggleOnShelf(UserData.DEFAULT_SHELF, word)
+
+    fun isOnShelf(shelf: String, word: String) =
+        shelves.firstOrNull { it.name == shelf }?.words?.any { it.equals(word, ignoreCase = true) } == true
+
+    fun toggleOnShelf(shelf: String, word: String) {
+        shelves = user.toggleInShelf(shelf, word)
     }
 
-    fun isFavourite(word: String) = favourites.any { it.equals(word, ignoreCase = true) }
+    /** Returns false when the name is blank or taken. */
+    fun createShelf(name: String): Boolean {
+        shelves = user.createShelf(name) ?: return false
+        return true
+    }
+
+    fun deleteShelf(name: String) {
+        shelves = user.deleteShelf(name)
+    }
+
+    fun setNote(word: String, text: String) {
+        notes = user.setNote(word, text)
+    }
+
+    /** Level of a word for review: 0 (new) to [UserData.MAX_LEVEL]. */
+    fun levelOf(word: String) = levels[word.lowercase()] ?: 0
+
+    /** Up to [size] shelved words to review: the least known first, in random order within a level. */
+    fun reviewQueue(size: Int = 10): List<String> =
+        shelves.flatMap { it.words }.distinctBy { it.lowercase() }.shuffled().sortedBy { levelOf(it) }.take(size)
+
+    fun recordReview(word: String, known: Boolean) {
+        levels = user.recordReview(word, known)
+    }
+
+    suspend fun preview(word: String) = repo.lookup(word)
+
+    suspend fun lettersPage(letter: String, offset: Int, limit: Int) = repo.page(letter, offset, limit)
 
     fun toggleSource(source: Source) {
         hiddenSources = if (source in hiddenSources) hiddenSources - source else hiddenSources + source

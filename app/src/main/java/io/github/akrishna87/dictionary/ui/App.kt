@@ -25,7 +25,8 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Bookmarks
+import androidx.compose.material.icons.filled.LibraryAdd
+import androidx.compose.material.icons.filled.LocalLibrary
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Search
@@ -88,7 +89,7 @@ fun DictionaryApp(vm: DictionaryViewModel) {
                     )
                     NavigationBarItem(
                         selected = tab == 1, onClick = { tab = 1 },
-                        icon = { Icon(Icons.Default.Bookmarks, null) }, label = { Text("Saved") },
+                        icon = { Icon(Icons.Default.LocalLibrary, null) }, label = { Text("Library") },
                     )
                 }
             }
@@ -98,7 +99,7 @@ fun DictionaryApp(vm: DictionaryViewModel) {
             when {
                 detail != null -> DetailScreen(vm, detail)
                 tab == 0 -> SearchScreen(vm)
-                else -> SavedScreen(vm)
+                else -> LibraryScreen(vm)
             }
         }
     }
@@ -180,26 +181,6 @@ private fun Home(vm: DictionaryViewModel) {
 }
 
 @Composable
-private fun SavedScreen(vm: DictionaryViewModel) {
-    if (vm.favourites.isEmpty()) {
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text(
-                "Tap the star on a word to save it here.",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(32.dp),
-            )
-        }
-        return
-    }
-    LazyColumn(contentPadding = PaddingValues(vertical = 8.dp)) {
-        item { SectionHeader("Saved words") }
-        items(vm.favourites, key = { it }) { w ->
-            WordRow(w, icon = Icons.Default.Star, onClick = { vm.open(w) })
-        }
-    }
-}
-
-@Composable
 private fun SectionHeader(title: String, action: String? = null, onAction: () -> Unit = {}) {
     Row(Modifier.fillMaxWidth().padding(20.dp, 12.dp, 8.dp, 0.dp), verticalAlignment = Alignment.CenterVertically) {
         Text(title, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
@@ -208,7 +189,7 @@ private fun SectionHeader(title: String, action: String? = null, onAction: () ->
 }
 
 @Composable
-private fun WordRow(word: String, icon: ImageVector? = null, onClick: () -> Unit) {
+internal fun WordRow(word: String, icon: ImageVector? = null, onClick: () -> Unit) {
     Row(
         Modifier.fillMaxWidth().clickable(onClick = onClick).padding(horizontal = 20.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -234,8 +215,11 @@ private fun DetailScreen(vm: DictionaryViewModel, detail: Detail) {
                 val speak = rememberSpeaker()
                 IconButton(onClick = { speak(entry.word) }) { Icon(Icons.Default.VolumeUp, "Pronounce") }
                 IconButton(onClick = { share(context, entry) }) { Icon(Icons.Default.Share, "Share") }
-                val saved = vm.isFavourite(entry.word)
-                IconButton(onClick = { vm.toggleFavourite(entry.word) }) {
+                var picking by remember(entry.word) { mutableStateOf(false) }
+                IconButton(onClick = { picking = true }) { Icon(Icons.Default.LibraryAdd, "Add to a shelf") }
+                if (picking) ShelfPickerDialog(vm, entry.word, onDone = { picking = false })
+                val saved = vm.isSaved(entry.word)
+                IconButton(onClick = { vm.toggleSaved(entry.word) }) {
                     Icon(
                         if (saved) Icons.Default.Star else Icons.Default.StarBorder,
                         if (saved) "Remove from saved" else "Save",
@@ -279,6 +263,14 @@ private fun Entry(vm: DictionaryViewModel, entry: WordEntry) {
             entry.redirectedFrom?.let {
                 Text("Showing the base form of “$it”", color = Palette.Coral, style = MaterialTheme.typography.bodyMedium)
             }
+            OutlinedTextField(
+                value = vm.notes[entry.word.lowercase()] ?: "",
+                onValueChange = { vm.setNote(entry.word, it) },
+                modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                label = { Text("My note") },
+                placeholder = { Text("Where you met it, a memory trick…") },
+                shape = RoundedCornerShape(16.dp),
+            )
             Row(Modifier.padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(selected = !thesaurus, onClick = { thesaurus = false }, label = { Text("Definitions") })
                 FilterChip(selected = thesaurus, onClick = { thesaurus = true }, label = { Text("Thesaurus") })

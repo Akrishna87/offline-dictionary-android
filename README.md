@@ -23,6 +23,7 @@ and you can hide a source with its chip.
 - Finds the base word for inflections: *abetted*, *abhorred*, *running*, *cities*.
 - "Did you mean…" suggestions for misspelled words.
 - Word of the day, a random word button, and recent searches.
+- A **Library** tab, your pocket library: keep words on **shelves** you name ("Exam words", "Book club"…), add a private **note** to any word, **browse the whole dictionary A–Z** like a book, and run quick **flashcard reviews** of your shelved words (five dots show how well you know each one). The star is a one-tap save to the "Saved" shelf.
 - Save words with the star; share a definition; hear a word read aloud with
   the phone's own text-to-speech voice.
 - Synonyms and antonyms under every definition, plus a **Thesaurus** tab: all synonyms and antonyms of the word, then each sense's similar, broader and narrower terms. Tap any word to jump to it.
@@ -55,9 +56,10 @@ tools/build_db.py  ──►  app/src/main/assets/dictionary.db  ──►  APK
 | File | What's in it |
 | --- | --- |
 | `Dictionary.kt` | Database access: prefix search, lookup, inflections, spelling suggestions, word of the day |
-| `UserData.kt` | Saved words and history |
+| `UserData.kt` | Shelves, notes, review progress and history |
 | `DictionaryViewModel.kt` | Screen state |
-| `ui/App.kt` | Search, Saved and word screens |
+| `ui/App.kt` | Search and word screens |
+| `ui/Library.kt` | The Library tab: shelves, browse A–Z, review |
 
 ## Building
 
