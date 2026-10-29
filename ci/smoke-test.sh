@@ -30,6 +30,14 @@ print(int(m[1])+int(dx),int(m[2])+int(dy)) if dx else print((int(m[1])+int(m[3])
   adb shell input tap $b
 }
 
+submit_search() { # text to wait for: press Enter, retrying if the key press was dropped
+  for _ in 1 2 3; do
+    adb shell input keyevent KEYCODE_ENTER
+    for _ in $(seq 8); do ui | grep -q "$1" && return 0; sleep 1; done
+  done
+  wait_for "$1" 1
+}
+
 wait_for "Search the dictionary" 30
 shot 1-home
 wait_for "WORD OF THE DAY" 5
@@ -48,8 +56,8 @@ wait_for "serendip" 10
 tap_text "serendip" # the search field still holds the last query
 adb shell input keyevent KEYCODE_MOVE_END KEYCODE_DEL KEYCODE_DEL KEYCODE_DEL KEYCODE_DEL KEYCODE_DEL KEYCODE_DEL KEYCODE_DEL KEYCODE_DEL
 adb shell input text "abetted"
-adb shell input keyevent KEYCODE_ENTER
-wait_for "Showing the base form" 10
+sleep 1
+submit_search "Showing the base form"
 shot 4-inflection
 
 tap_text "Thesaurus"
@@ -61,8 +69,8 @@ wait_for "abetted" 10
 tap_text "abetted"
 adb shell input keyevent KEYCODE_MOVE_END KEYCODE_DEL KEYCODE_DEL KEYCODE_DEL KEYCODE_DEL KEYCODE_DEL KEYCODE_DEL KEYCODE_DEL KEYCODE_DEL
 adb shell input text "happy"
-adb shell input keyevent KEYCODE_ENTER
-wait_for "Antonyms" 10 # happy has antonyms (unhappy) under its definitions
+sleep 1
+submit_search "Antonyms" # happy has antonyms (unhappy) under its definitions
 shot 5b-antonyms
 
 adb shell input keyevent KEYCODE_BACK # close the word
