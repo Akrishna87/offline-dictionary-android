@@ -15,7 +15,7 @@ ui() { adb shell uiautomator dump /sdcard/ui.xml >/dev/null && adb exec-out cat 
 shot() { adb exec-out screencap -p > "$OUT/$1.png"; }
 wait_for() { # text, seconds
   for _ in $(seq "$2"); do ui | grep -q "$1" && return 0; sleep 1; done
-  echo "FAIL: never saw '$1' on screen"; ui | head -c 3000; shot "fail-$(echo "$1" | tr -c 'A-Za-z0-9' _)"; exit 1
+  echo "FAIL: never saw '$1' on screen"; ui | grep -o '\(text\|content-desc\)="[^"]\+"' | head -60; shot "fail-$(echo "$1" | tr -c 'A-Za-z0-9' _)"; exit 1
 }
 tap_text() { # text [dx dy]: tap the centre of the first node starting with text, or dx,dy from its top-left corner
   local b

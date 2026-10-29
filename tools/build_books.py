@@ -149,9 +149,21 @@ def chapters(paras):
 
 
 SCHEMA = """
-CREATE TABLE books(id INTEGER PRIMARY KEY, title TEXT NOT NULL, author TEXT NOT NULL, chapters INTEGER NOT NULL, words INTEGER NOT NULL);
+CREATE TABLE books(id INTEGER PRIMARY KEY, title TEXT NOT NULL, author TEXT NOT NULL, chapters INTEGER NOT NULL, words INTEGER NOT NULL,
+                  start INTEGER NOT NULL);
 CREATE TABLE chapters(book_id INTEGER NOT NULL, idx INTEGER NOT NULL, title TEXT NOT NULL, body TEXT NOT NULL, PRIMARY KEY(book_id, idx)) WITHOUT ROWID;
 """
+
+
+MAIN_CHAPTER = re.compile(
+    rf"^(?:(?:chapter|book|part|act|stave|letter|canto|volume|section)\s+(?:the\s+)?{NUMBER}\b|(?:[IVXLC]{{1,7}}|\d{{1,3}})\.)",
+    re.I,
+)
+
+
+def story_start(chaps):
+    """Index of the first real chapter, so a book opens on the story and not on its preface or introduction."""
+    return next((i for i, (title, _) in enumerate(chaps) if MAIN_CHAPTER.match(title)), 0)
 
 
 def main():
@@ -196,11 +208,12 @@ def main():
         if words < 1000:
             print(f"#{num} {title}: only {words} words, skipped", file=sys.stderr)
             continue
-        db.execute("INSERT INTO books VALUES(?,?,?,?,?)", (num, title, author, len(chaps), words))
+        start = story_start(chaps)
+        db.execute("INSERT INTO books VALUES(?,?,?,?,?,?)", (num, title, author, len(chaps), words, start))
         db.executemany("INSERT INTO chapters VALUES(?,?,?,?)",
                        [(num, i, t, "\n\n".join(ps)) for i, (t, ps) in enumerate(chaps)])
         ok += 1
-        print(f"#{num} {title} — {author}: {len(chaps)} chapters, {words} words; starts at '{chaps[0][0]}'", file=sys.stderr)
+        print(f"#{num} {title} — {author}: {len(chaps)} chapters, {words} words; opens at '{chaps[start][0]}' (#{start})", file=sys.stderr)
     db.commit()
     db.execute("VACUUM")
     db.close()

@@ -5,7 +5,15 @@ import android.database.sqlite.SQLiteDatabase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-data class Book(val id: Int, val title: String, val author: String, val chapters: Int, val words: Int) {
+data class Book(
+    val id: Int,
+    val title: String,
+    val author: String,
+    val chapters: Int,
+    val words: Int,
+    /** The chapter a new reader opens on: the first real chapter, past any preface. */
+    val start: Int,
+) {
     /** Reading time at an easy 230 words a minute. */
     val minutes: Int get() = (words / 230).coerceAtLeast(1)
 
@@ -33,8 +41,8 @@ class BookRepository(private val context: Context) {
     private val db: SQLiteDatabase? by lazy { runCatching { openAssetDatabase(context, "library.db") }.getOrNull() }
 
     suspend fun books(): List<Book> = withContext(Dispatchers.IO) {
-        db?.rawQuery("SELECT id, title, author, chapters, words FROM books ORDER BY title", null)?.use { c ->
-            buildList { while (c.moveToNext()) add(Book(c.getInt(0), c.getString(1), c.getString(2), c.getInt(3), c.getInt(4))) }
+        db?.rawQuery("SELECT id, title, author, chapters, words, start FROM books ORDER BY title", null)?.use { c ->
+            buildList { while (c.moveToNext()) add(Book(c.getInt(0), c.getString(1), c.getString(2), c.getInt(3), c.getInt(4), c.getInt(5))) }
         } ?: emptyList()
     }
 

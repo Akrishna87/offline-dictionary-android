@@ -221,7 +221,7 @@ fun ReaderPage(vm: DictionaryViewModel, bookId: Int) {
     val settings = vm.reader
     val colors = colorsFor(settings.theme)
     var restore by remember(bookId) { mutableStateOf(vm.progress[bookId]) } // used once, to reopen the saved page
-    var chapter by remember(bookId) { mutableIntStateOf(restore?.chapter ?: 0) }
+    var chapter by remember(bookId) { mutableIntStateOf(restore?.chapter ?: book.start) }
     var chapters by remember(bookId) { mutableStateOf<List<ChapterInfo>>(emptyList()) }
     var paragraphs by remember(bookId, chapter) { mutableStateOf<List<String>?>(null) }
     var showChapters by remember { mutableStateOf(false) }
