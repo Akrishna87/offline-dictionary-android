@@ -23,7 +23,8 @@ tap_text() { # tap the centre of the first node whose text matches
 import re,sys
 x=sys.stdin.read()
 m=re.search(r'text=\"$1[^\"]*\"[^>]*bounds=\"\[(\d+),(\d+)\]\[(\d+),(\d+)\]\"',x)
-print((int(m[1])+int(m[3]))//2,(int(m[2])+int(m[4]))//2) if m else sys.exit(1)")
+print((int(m[1])+int(m[3]))//2,(int(m[2])+int(m[4]))//2) if m else sys.exit(1)") || true
+  [ -n "$b" ] || { echo "FAIL: nothing on screen matching '$1'"; shot "fail-tap"; exit 1; }
   adb shell input tap $b
 }
 
@@ -40,9 +41,10 @@ tap_text "serendipity"
 wait_for "good luck in making unexpected" 10
 shot 3-word
 
-adb shell input keyevent KEYCODE_BACK
-adb shell input keyevent KEYCODE_BACK
-tap_text "Search the dictionary" || true
+adb shell input keyevent KEYCODE_BACK # back to the search screen (a second back would leave the app)
+wait_for "serendip" 10
+tap_text "serendip" # the search field still holds the last query
+adb shell input keyevent KEYCODE_MOVE_END KEYCODE_DEL KEYCODE_DEL KEYCODE_DEL KEYCODE_DEL KEYCODE_DEL KEYCODE_DEL KEYCODE_DEL KEYCODE_DEL
 adb shell input text "abetted"
 adb shell input keyevent KEYCODE_ENTER
 wait_for "Showing the base form" 10
