@@ -25,7 +25,7 @@ and you can hide a source with its chip.
 - Word of the day, a random word button, and recent searches.
 - Save words with the star; share a definition; hear a word read aloud with
   the phone's own text-to-speech voice.
-- Tap a synonym to jump to it.
+- Synonyms and antonyms under every definition, plus a **Thesaurus** tab: all synonyms and antonyms of the word, then each sense's similar, broader and narrower terms. Tap any word to jump to it.
 - Select a word in any app and choose **Define** from the text menu.
 
 ## Installing it
@@ -46,7 +46,7 @@ tools/build_db.py  ──►  app/src/main/assets/dictionary.db  ──►  APK
 
 - `tools/build_db.py` downloads each source, parses it and writes one SQLite
   file. It needs only Python 3. To add a source, write a function that yields
-  `(word, source_code, part_of_speech, definition, example, synonyms)` rows,
+  `Row(word, source_code, pos, text, ...)` rows,
   add it to `sources` in `main()`, and add a label for its code to `Source` in
   `Dictionary.kt`.
 - The app is Kotlin and Jetpack Compose (Material 3). `Dictionary.kt` copies

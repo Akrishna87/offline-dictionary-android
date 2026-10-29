@@ -269,6 +269,7 @@ private fun Missing(vm: DictionaryViewModel, detail: Detail.Missing) {
 private fun Entry(vm: DictionaryViewModel, entry: WordEntry) {
     val present = Source.entries.filter { s -> entry.definitions.any { it.source == s } }
     val shown = entry.definitions.filter { it.source !in vm.hiddenSources }
+    var thesaurus by remember(entry.word) { mutableStateOf(false) }
     LazyColumn(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp)) {
         item {
             Text(entry.word, style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Black)
@@ -278,7 +279,11 @@ private fun Entry(vm: DictionaryViewModel, entry: WordEntry) {
             entry.redirectedFrom?.let {
                 Text("Showing the base form of “$it”", color = Palette.Coral, style = MaterialTheme.typography.bodyMedium)
             }
-            if (present.size > 1) {
+            Row(Modifier.padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(selected = !thesaurus, onClick = { thesaurus = false }, label = { Text("Definitions") })
+                FilterChip(selected = thesaurus, onClick = { thesaurus = true }, label = { Text("Thesaurus") })
+            }
+            if (present.size > 1 && !thesaurus) {
                 FlowRow(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     present.forEach { s ->
                         FilterChip(
@@ -289,6 +294,10 @@ private fun Entry(vm: DictionaryViewModel, entry: WordEntry) {
                     }
                 }
             }
+        }
+        if (thesaurus) {
+            thesaurusItems(vm, entry)
+            return@LazyColumn
         }
         if (shown.isEmpty()) {
             item { Text("All sources are hidden.", Modifier.padding(top = 24.dp), color = MaterialTheme.colorScheme.onSurfaceVariant) }
@@ -336,14 +345,67 @@ private fun DefinitionRow(vm: DictionaryViewModel, number: Int, d: Definition) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            if (d.synonyms.isNotEmpty()) {
-                FlowRow(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    d.synonyms.forEach { s ->
-                        AssistChip(onClick = { vm.open(s) }, label = { Text(s) })
-                    }
-                }
-            }
+            WordChips(vm, "Synonyms", d.synonyms)
+            WordChips(vm, "Antonyms", d.antonyms)
         }
+    }
+}
+
+/** The Thesaurus tab: every synonym and antonym of the word, then the related words of each sense. */
+private fun androidx.compose.foundation.lazy.LazyListScope.thesaurusItems(vm: DictionaryViewModel, entry: WordEntry) {
+    val synonyms = entry.allSynonyms
+    val antonyms = entry.allAntonyms
+    val senses = entry.definitions.filter {
+        it.synonyms.isNotEmpty() || it.antonyms.isNotEmpty() || it.similar.isNotEmpty() ||
+            it.broader.isNotEmpty() || it.narrower.isNotEmpty()
+    }
+    if (synonyms.isEmpty() && antonyms.isEmpty() && senses.isEmpty()) {
+        item {
+            Text(
+                "No synonyms or antonyms are recorded for this word.",
+                Modifier.padding(top = 24.dp),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        return
+    }
+    item(key = "th-all") {
+        Column(Modifier.padding(top = 20.dp)) {
+            WordChips(vm, "All synonyms", synonyms.take(40), big = true)
+            WordChips(vm, "All antonyms", antonyms.take(40), big = true)
+        }
+    }
+    items(senses.size, key = { "th-$it" }) { i ->
+        val d = senses[i]
+        Column(Modifier.padding(top = 20.dp)) {
+            Text(
+                listOf(d.partOfSpeech, d.source.label).filter { it.isNotEmpty() }.joinToString(" · ").uppercase(Locale.ROOT),
+                style = MaterialTheme.typography.labelSmall,
+                color = Palette.Violet,
+            )
+            Text(d.text, Modifier.padding(top = 2.dp), style = MaterialTheme.typography.bodyMedium)
+            WordChips(vm, "Synonyms", d.synonyms)
+            WordChips(vm, "Antonyms", d.antonyms)
+            WordChips(vm, "Similar", d.similar)
+            WordChips(vm, "Broader", d.broader)
+            WordChips(vm, "Narrower", d.narrower)
+        }
+    }
+}
+
+/** A labelled row of tappable words; draws nothing when the list is empty. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun WordChips(vm: DictionaryViewModel, label: String, words: List<String>, big: Boolean = false) {
+    if (words.isEmpty()) return
+    Text(
+        label,
+        Modifier.padding(top = if (big) 16.dp else 8.dp),
+        style = if (big) MaterialTheme.typography.titleSmall else MaterialTheme.typography.labelMedium,
+        color = if (label.contains("Antonym")) Palette.Coral else MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    FlowRow(Modifier.padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        words.forEach { w -> AssistChip(onClick = { vm.open(w) }, label = { Text(w) }) }
     }
 }
 

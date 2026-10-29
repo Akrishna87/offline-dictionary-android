@@ -49,4 +49,8 @@ adb shell input text "abetted"
 adb shell input keyevent KEYCODE_ENTER
 wait_for "Showing the base form" 10
 shot 4-inflection
+
+tap_text "Thesaurus"
+wait_for "All synonyms" 10
+shot 5-thesaurus
 echo "smoke test passed"

@@ -2,7 +2,7 @@
 """Builds app/src/main/assets/dictionary.db from several open dictionaries.
 
 Sources (each one is a function that yields rows; add your own to SOURCES):
-  wordnet    Princeton WordNet 3.0      definitions, examples, synonyms, word forms
+  wordnet    Princeton WordNet 3.0      definitions, examples, synonyms, antonyms, related terms, word forms
   webster    Webster's 1913 (public domain)   ~100k headwords, rich older vocabulary
   cmudict    CMU Pronouncing Dictionary       pronunciations (shown as IPA)
   wiktionary Wiktionary via kaikki.org        optional, big: pass --wiktionary
@@ -20,7 +20,7 @@ import sqlite3
 import sys
 import urllib.request
 import zipfile
-from collections import defaultdict
+from collections import defaultdict, namedtuple
 
 RAW = "https://raw.githubusercontent.com"
 URLS = {
@@ -32,6 +32,10 @@ URLS = {
 
 # Source codes stored in the database; the app maps them to display names.
 WORDNET, WEBSTER, WIKTIONARY = "wn", "web", "wikt"
+
+# One definition of one word. The last five are comma-separated word lists.
+Row = namedtuple("Row", "word source pos text example syns ants similar broader narrower",
+                 defaults=("", "", "", "", "", ""))
 
 POS = {"n": "noun", "v": "verb", "a": "adjective", "s": "adjective", "r": "adverb"}
 POS_FILES = {"noun": "n", "verb": "v", "adj": "a", "adv": "r"}
@@ -62,37 +66,74 @@ def clean(text):
 # --- WordNet ---------------------------------------------------------------
 
 def wordnet(cache):
-    """Yields (word, source, pos, definition, example, synonyms) and fills forms/common."""
+    """Yields Rows and fills wordnet.forms / wordnet.common.
+
+    Besides synonyms (the other words of the same synset), it follows WordNet's pointers
+    for antonyms (!), similar adjectives (&), broader terms (@) and narrower terms (~).
+    """
     zf = zipfile.ZipFile(fetch("wordnet", cache))
     root = next(n for n in zf.namelist() if n.endswith("data.noun")).rsplit("data.noun", 1)[0]
     read = lambda n: zf.read(root + n).decode("utf-8").splitlines()
+    file_of = {"n": "noun", "v": "verb", "a": "adj", "s": "adj", "r": "adv"}
 
-    for fname, code in POS_FILES.items():
+    synsets = {}  # (file, offset) -> dict
+    for fname in POS_FILES:
         for line in read(f"data.{fname}"):
             if line.startswith("  "):
                 continue
             head, _, gloss = line.partition("|")
             parts = head.split()
-            ss_type = parts[2]
             count = int(parts[3], 16)
-            lemmas = []
-            for i in range(count):
-                w = parts[4 + 2 * i]
-                w = re.sub(r"\((a|p|ip)\)$", "", w).replace("_", " ")
-                lemmas.append(w)
-            chunks = [c.strip() for c in gloss.split(";")]
-            definition = []
-            examples = []
-            for c in chunks:
+            lemmas = [re.sub(r"\((a|p|ip)\)$", "", parts[4 + 2 * i]).replace("_", " ") for i in range(count)]
+            i = 4 + 2 * count
+            ptrs = []
+            for _ in range(int(parts[i])):
+                sym, off, pos, st = parts[i + 1:i + 5]
+                ptrs.append((sym, (file_of[pos], off), st))
+                i += 4
+            definition, examples = [], []
+            for c in (c.strip() for c in gloss.split(";")):
                 if c.startswith('"'):
                     examples.append(c.strip('"'))
                 elif c:
                     definition.append(c)
-            definition = "; ".join(definition)
-            example = " / ".join(examples)
-            for w in lemmas:
-                syn = [x for x in lemmas if x.lower() != w.lower()]
-                yield w, WORDNET, POS[ss_type], definition, example, ", ".join(syn)
+            synsets[(fname, parts[0])] = dict(
+                type=parts[2], lemmas=lemmas, ptrs=ptrs,
+                text="; ".join(definition), example=" / ".join(examples))
+
+    def related(ss, symbols, limit, skip):
+        out = []
+        for sym, key, _ in ss["ptrs"]:
+            if sym in symbols and key in synsets:
+                for w in synsets[key]["lemmas"]:
+                    if w.lower() not in skip and w not in out:
+                        out.append(w)
+        return out[:limit]
+
+    for ss in synsets.values():
+        lemmas = ss["lemmas"]
+        # A satellite adjective has no antonym of its own; its head adjective's antonyms stand in.
+        heads = [synsets[k] for sym, k, _ in ss["ptrs"] if sym == "&" and k in synsets] if ss["type"] == "s" else []
+        for n, w in enumerate(lemmas, 1):
+            skip = {w.lower()}
+            syns = [x for x in lemmas if x.lower() != w.lower()]
+            ants = []
+            for sym, key, st in ss["ptrs"]:
+                if sym == "!" and int(st[:2], 16) == n and key in synsets:
+                    ants.append(synsets[key]["lemmas"][int(st[2:], 16) - 1])
+            if not ants:
+                for h in heads:
+                    for sym, key, st in h["ptrs"]:
+                        if sym == "!" and key in synsets:
+                            ants.append(synsets[key]["lemmas"][int(st[2:], 16) - 1])
+                    break
+            skip |= {x.lower() for x in syns + ants}
+            similar = related(ss, {"&"}, 8, skip)
+            broader = related(ss, {"@", "@i"}, 6, skip)
+            narrower = related(ss, {"~", "~i"}, 10, skip)
+            yield Row(w, WORDNET, POS[ss["type"]], ss["text"], ss["example"],
+                      ", ".join(syns), ", ".join(dict.fromkeys(ants)),
+                      ", ".join(similar), ", ".join(broader), ", ".join(narrower))
 
     forms = {}
     for fname in POS_FILES:
@@ -137,7 +178,7 @@ def webster(cache):
         for sense in split_senses(text):
             sense = clean(sense)
             if sense:
-                yield word, WEBSTER, "", sense, "", ""
+                yield Row(word, WEBSTER, "", sense)
 
 
 # --- Wiktionary (optional) ---------------------------------------------------
@@ -155,8 +196,9 @@ def wiktionary(cache):
                 if not gl or s.get("form_of") or s.get("alt_of"):
                     continue
                 ex = next((x["text"] for x in s.get("examples", []) if x.get("text")), "")
-                syn = ", ".join(x["word"] for x in s.get("synonyms", [])[:6])
-                yield e["word"], WIKTIONARY, e.get("pos", ""), clean(gl[-1]), clean(ex), syn
+                syn = ", ".join(x["word"] for x in s.get("synonyms", [])[:8])
+                ant = ", ".join(x["word"] for x in s.get("antonyms", [])[:8])
+                yield Row(e["word"], WIKTIONARY, e.get("pos", ""), clean(gl[-1]), clean(ex), syn, ant)
 
 
 # --- CMUdict -----------------------------------------------------------------
@@ -193,7 +235,8 @@ def cmudict(cache):
 SCHEMA = """
 CREATE TABLE words(id INTEGER PRIMARY KEY, word TEXT NOT NULL, lc TEXT NOT NULL, ipa TEXT, common INTEGER NOT NULL);
 CREATE TABLE defs(word_id INTEGER NOT NULL, source TEXT NOT NULL, pos TEXT NOT NULL, ord INTEGER NOT NULL,
-                  text TEXT NOT NULL, example TEXT NOT NULL, syns TEXT NOT NULL);
+                  text TEXT NOT NULL, example TEXT NOT NULL, syns TEXT NOT NULL, ants TEXT NOT NULL,
+                  similar TEXT NOT NULL, broader TEXT NOT NULL, narrower TEXT NOT NULL);
 CREATE TABLE forms(form TEXT PRIMARY KEY, lemma TEXT NOT NULL) WITHOUT ROWID;
 CREATE INDEX defs_word ON defs(word_id);
 CREATE INDEX words_lc ON words(lc);
@@ -209,11 +252,11 @@ def main():
     args = ap.parse_args()
 
     sources = [wordnet, webster] + ([wiktionary] if args.wiktionary else [])
-    entries = defaultdict(list)  # lowercase -> [(display word, source, pos, text, example, syns)]
+    entries = defaultdict(list)  # lowercase -> [Row]
     for src in sources:
         n = 0
         for row in src(args.cache):
-            entries[row[0].lower()].append(row)
+            entries[row.word.lower()].append(row)
             n += 1
         print(f"{src.__name__}: {n} definitions", file=sys.stderr)
     prons = cmudict(args.cache)
@@ -232,17 +275,18 @@ def main():
     for wid, lc in enumerate(sorted(entries), 1):
         rows = entries[lc]
         # Display with the capitalisation WordNet/Wiktionary use (proper nouns), else lowercase.
-        word = next((r[0] for r in rows if r[1] != WEBSTER), lc)
+        word = next((r.word for r in rows if r.source != WEBSTER), lc)
         db.execute("INSERT INTO words VALUES(?,?,?,?,?)",
                    (wid, word, lc, prons.get(lc), 1 if lc in common else 0))
-        rows.sort(key=lambda r: order[r[1]])  # stable: keeps each source's own sense order
+        rows.sort(key=lambda r: order[r.source])  # stable: keeps each source's own sense order
         seen, k = set(), 0
-        for _, source, pos, text, example, syns in rows:
-            key = (source, pos, text.lower())
+        for r in rows:
+            key = (r.source, r.pos, r.text.lower())
             if key in seen:
                 continue
             seen.add(key)
-            db.execute("INSERT INTO defs VALUES(?,?,?,?,?,?,?)", (wid, source, pos, k, text, example, syns))
+            db.execute("INSERT INTO defs VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                       (wid, r.source, r.pos, k, r.text, r.example, r.syns, r.ants, r.similar, r.broader, r.narrower))
             k += 1
     db.executemany("INSERT INTO forms VALUES(?,?)", forms.items())
     db.commit()

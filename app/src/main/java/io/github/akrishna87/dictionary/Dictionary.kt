@@ -25,6 +25,13 @@ data class Definition(
     val text: String,
     val example: String,
     val synonyms: List<String>,
+    val antonyms: List<String>,
+    /** Words with a similar (but not the same) meaning: WordNet's "similar to" links. */
+    val similar: List<String>,
+    /** Hypernyms: more general terms (dog → canine). */
+    val broader: List<String>,
+    /** Hyponyms: more specific terms (dog → puppy). */
+    val narrower: List<String>,
 )
 
 data class WordEntry(
@@ -33,7 +40,11 @@ data class WordEntry(
     val definitions: List<Definition>,
     /** The form the user typed when it was an inflection (e.g. "mice" → "mouse"). */
     val redirectedFrom: String?,
-)
+) {
+    /** All synonyms across every sense, the ones from the most common senses first. */
+    val allSynonyms: List<String> get() = definitions.flatMap { it.synonyms }.distinct()
+    val allAntonyms: List<String> get() = definitions.flatMap { it.antonyms }.distinct()
+}
 
 /** A word in the search results; [common] ones are listed first. */
 data class Suggestion(val word: String, val common: Boolean)
@@ -125,7 +136,7 @@ class DictionaryRepository(private val context: Context) {
             ipa = c.getString(1)
         }
         val defs = db.rawQuery(
-            "SELECT source, pos, text, example, syns FROM defs WHERE word_id = ? ORDER BY ord",
+            "SELECT source, pos, text, example, syns, ants, similar, broader, narrower FROM defs WHERE word_id = ? ORDER BY ord",
             arrayOf(id.toString()),
         ).use { c ->
             buildList {
@@ -136,7 +147,11 @@ class DictionaryRepository(private val context: Context) {
                             partOfSpeech = c.getString(1),
                             text = c.getString(2),
                             example = c.getString(3),
-                            synonyms = c.getString(4).split(", ").filter { it.isNotBlank() },
+                            synonyms = c.words(4),
+                            antonyms = c.words(5),
+                            similar = c.words(6),
+                            broader = c.words(7),
+                            narrower = c.words(8),
                         ),
                     )
                 }
@@ -164,6 +179,9 @@ class DictionaryRepository(private val context: Context) {
         }
         return candidates.firstOrNull { it.length > 1 && find(it) != null }
     }
+
+    private fun android.database.Cursor.words(column: Int) =
+        getString(column).split(", ").filter { it.isNotBlank() }
 
     private fun scalar(sql: String, vararg args: String): String? =
         db.rawQuery(sql, args.takeIf { it.isNotEmpty() }).use { if (it.moveToFirst()) it.getString(0) else null }
