@@ -86,7 +86,8 @@ tap_text "Find a title"
 adb shell input text "pride"
 sleep 1
 tap_text "Pride and Prejudice"
-wait_for "universally acknowledged" 20
+wait_for "Back to library" 20
+wait_for "universally acknowledged" 20 # the book opens on Chapter 1, not on front matter
 shot 7-reader
 tap_text "It is a truth" 60 45 # tap the word "It"
 wait_for "Full entry" 10

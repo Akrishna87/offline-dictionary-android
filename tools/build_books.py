@@ -132,8 +132,8 @@ def chapters(paras):
         else:
             merged.append((title, ps))
     merged = [c for c in merged if c[1]]
-    if len(merged) > 1 and merged[0][0] == "Beginning" and sum(len(x) for x in merged[0][1]) < MIN_CHAPTER_CHARS:
-        merged = merged[1:]  # just the title page
+    if len(merged) > 1 and merged[0][0] == "Beginning" and sum(len(x) > 150 for x in merged[0][1]) < 3:
+        merged = merged[1:]  # title page, contents and illustration lists, not prose to read
     if len(merged) < 2:  # no headings found: cut into evenly sized parts
         flat = [p for _, ps in merged for p in ps]
         merged, cur, size = [], [], 0
@@ -200,7 +200,7 @@ def main():
         db.executemany("INSERT INTO chapters VALUES(?,?,?,?)",
                        [(num, i, t, "\n\n".join(ps)) for i, (t, ps) in enumerate(chaps)])
         ok += 1
-        print(f"#{num} {title} — {author}: {len(chaps)} chapters, {words} words", file=sys.stderr)
+        print(f"#{num} {title} — {author}: {len(chaps)} chapters, {words} words; starts at '{chaps[0][0]}'", file=sys.stderr)
     db.commit()
     db.execute("VACUUM")
     db.close()
