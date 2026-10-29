@@ -1,0 +1,7 @@
+tools/.cache/
+app/src/main/assets/dictionary.db
+build/
+.gradle/
+local.properties
+*.iml
+.idea/
