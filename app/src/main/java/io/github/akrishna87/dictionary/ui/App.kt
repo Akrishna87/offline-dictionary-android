@@ -263,6 +263,15 @@ private fun Entry(vm: DictionaryViewModel, entry: WordEntry) {
             entry.pronunciation?.let {
                 Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.titleMedium)
             }
+            val partsOfSpeech = entry.definitions.map { it.partOfSpeech }.filter { it.isNotEmpty() }.distinct()
+            if (partsOfSpeech.isNotEmpty()) {
+                Text(
+                    partsOfSpeech.joinToString(" · "),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontStyle = FontStyle.Italic,
+                    color = Palette.Coral,
+                )
+            }
             entry.redirectedFrom?.let {
                 Text("Showing the base form of “$it”", color = Palette.Coral, style = MaterialTheme.typography.bodyMedium)
             }

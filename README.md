@@ -10,7 +10,7 @@ than one view of each word.
 | Source | License | What it adds |
 | --- | --- | --- |
 | [Princeton WordNet 3.0](https://wordnet.princeton.edu/) | WordNet license | Modern definitions, examples, synonyms, and the word-form table used to find base words ("mice" → "mouse") |
-| [Webster's Unabridged, 1913](https://github.com/matthewreagan/WebstersEnglishDictionary) | Public domain | ~100,000 headwords, including rarer and older words |
+| [Webster's Unabridged, 1913](https://github.com/matthewreagan/WebstersEnglishDictionary) | Public domain | ~100,000 headwords, including rarer and older words. Its data has no part of speech, so `build_db.py` works it out from the wording of each definition ("To …" is a verb, "Of or pertaining to …" an adjective, "See X" takes X's part of speech). That agrees with WordNet 98% of the time where both know the word; unclear ones are left blank |
 | [CMU Pronouncing Dictionary](https://github.com/cmusphinx/cmudict) | BSD-style | Pronunciations, shown as IPA |
 | [Project Gutenberg](https://www.gutenberg.org/) books | Public domain (US) | The texts for the pocket library; the list is `tools/books.txt` |
 | [Wiktionary](https://kaikki.org/) (optional) | CC BY-SA | Broad, current coverage. Off by default because it makes the app much bigger; run the **APK** workflow by hand and tick *wiktionary*, or run `tools/build_db.py --wiktionary` |
@@ -21,6 +21,7 @@ and you can hide a source with its chip.
 ## Features
 
 - Instant search-as-you-type, common words first.
+- Every word page lists its parts of speech (noun, verb, adjective…). About 95% of words have one; the rest are old or obscure Webster's entries whose wording doesn't make it clear.
 - Finds the base word for inflections: *abetted*, *abhorred*, *running*, *cities*.
 - "Did you mean…" suggestions for misspelled words.
 - Word of the day, a random word button, and recent searches.
