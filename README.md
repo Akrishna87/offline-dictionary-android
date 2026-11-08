@@ -20,7 +20,7 @@ and you can hide a source with its chip.
 
 ## Features
 
-- Instant search-as-you-type, common words first.
+- Instant search-as-you-type, common words first, or tap the microphone and **say the word**. It uses the phone's own speech recogniser, so the app still needs no permissions; the recogniser is asked to work offline, but whether it can depends on the phone (on Google's, download the English offline speech pack in its settings).
 - Every word page lists its parts of speech (noun, verb, adjective…). About 95% of words have one; the rest are old or obscure Webster's entries whose wording doesn't make it clear.
 - Finds the base word for inflections: *abetted*, *abhorred*, *running*, *cities*.
 - "Did you mean…" suggestions for misspelled words.

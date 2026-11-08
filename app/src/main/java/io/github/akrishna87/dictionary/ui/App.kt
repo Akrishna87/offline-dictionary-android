@@ -1,7 +1,13 @@
 package io.github.akrishna87.dictionary.ui
 
+import android.app.Activity
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
+import android.speech.RecognizerIntent
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import android.speech.tts.TextToSpeech
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
@@ -27,6 +33,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.LibraryAdd
 import androidx.compose.material.icons.filled.LocalLibrary
+import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Search
@@ -110,6 +117,29 @@ fun DictionaryApp(vm: DictionaryViewModel) {
 
 @Composable
 private fun SearchScreen(vm: DictionaryViewModel) {
+    val context = LocalContext.current
+    val speech = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            val heard = result.data?.getStringArrayListExtra(RecognizerIntent.EXTRA_RESULTS).orEmpty()
+            vm.openSpoken(heard)
+        }
+    }
+
+    /** Hands over to the phone's own speech recogniser, so this app needs no microphone permission. */
+    fun listen() {
+        val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
+            .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
+            .putExtra(RecognizerIntent.EXTRA_LANGUAGE, "en-US")
+            .putExtra(RecognizerIntent.EXTRA_PROMPT, "Say a word")
+            .putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 5)
+            .putExtra(RecognizerIntent.EXTRA_PREFER_OFFLINE, true)
+        try {
+            speech.launch(intent)
+        } catch (e: ActivityNotFoundException) {
+            Toast.makeText(context, "This phone has no speech recogniser installed", Toast.LENGTH_LONG).show()
+        }
+    }
+
     Column(Modifier.fillMaxSize()) {
         OutlinedTextField(
             value = vm.query,
@@ -118,8 +148,11 @@ private fun SearchScreen(vm: DictionaryViewModel) {
             placeholder = { Text("Search the dictionary") },
             leadingIcon = { Icon(Icons.Default.Search, null) },
             trailingIcon = {
-                if (vm.query.isNotEmpty()) {
-                    IconButton(onClick = { vm.onQueryChange("") }) { Icon(Icons.Default.Close, "Clear") }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (vm.query.isNotEmpty()) {
+                        IconButton(onClick = { vm.onQueryChange("") }) { Icon(Icons.Default.Close, "Clear") }
+                    }
+                    IconButton(onClick = ::listen) { Icon(Icons.Default.Mic, "Search by voice") }
                 }
             },
             singleLine = true,

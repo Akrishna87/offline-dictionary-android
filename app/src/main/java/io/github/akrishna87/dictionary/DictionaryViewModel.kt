@@ -91,6 +91,23 @@ class DictionaryViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /**
+     * A spoken search. The recogniser returns its best guesses; the first one that is in the dictionary opens
+     * (also trying just the first word of a phrase), and if none is, the first guess opens with "Did you mean".
+     */
+    fun openSpoken(heard: List<String>) {
+        val guesses = heard.map { it.trim().trimEnd('.', '!', '?', ',').trim() }.filter { it.isNotEmpty() }
+        if (guesses.isEmpty()) return
+        onQueryChange(guesses.first())
+        detail = Detail.Loading
+        viewModelScope.launch {
+            val candidates = guesses.flatMap { listOf(it, it.substringBefore(' ')) }.distinct()
+            val word = candidates.firstOrNull { repo.lookup(it) != null } ?: guesses.first()
+            onQueryChange(word)
+            open(word)
+        }
+    }
+
     fun submit() {
         if (query.isNotBlank()) open(query)
     }

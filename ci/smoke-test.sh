@@ -41,6 +41,7 @@ submit_search() { # text to wait for: press Enter, retrying if the key press was
 wait_for "Search the dictionary" 30
 shot 1-home
 wait_for "WORD OF THE DAY" 5
+wait_for "Search by voice" 5 # the microphone button (launching the recogniser itself needs a phone)
 
 tap_text "Search the dictionary"
 adb shell input text "serendip"
