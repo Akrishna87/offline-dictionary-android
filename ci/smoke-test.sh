@@ -30,6 +30,19 @@ print(int(m[1])+int(dx),int(m[2])+int(dy)) if dx else print((int(m[1])+int(m[3])
   adb shell input tap $b
 }
 
+tap_exact() { # text index: tap the centre of the index-th node (from 0) whose text is exactly this
+  local b
+  b=$(ui | python3 -c "
+import re,sys
+x=sys.stdin.read()
+ms=list(re.finditer(r'text=\"$1\"[^>]*bounds=\"\[(\d+),(\d+)\]\[(\d+),(\d+)\]\"',x))
+if len(ms)<=$2: sys.exit(1)
+m=ms[$2]
+print((int(m[1])+int(m[3]))//2,(int(m[2])+int(m[4]))//2)") || true
+  [ -n "$b" ] || { echo "FAIL: no node with text exactly '$1' (#$2)"; shot "fail-exact"; exit 1; }
+  adb shell input tap $b
+}
+
 submit_search() { # text to wait for: press Enter, retrying if the key press was dropped
   for _ in 1 2 3; do
     adb shell input keyevent KEYCODE_ENTER
@@ -70,8 +83,9 @@ wait_for "abetted" 10
 tap_text "abetted"
 adb shell input keyevent KEYCODE_MOVE_END KEYCODE_DEL KEYCODE_DEL KEYCODE_DEL KEYCODE_DEL KEYCODE_DEL KEYCODE_DEL KEYCODE_DEL KEYCODE_DEL
 adb shell input text "happy"
-sleep 1
-submit_search "Antonyms" # happy has antonyms (unhappy) under its definitions
+wait_for "happy hour" 10 # the suggestions list: the first "happy" is the search field, the second is the row
+tap_exact "happy" 1
+wait_for "Antonyms" 10 # happy has antonyms (unhappy) under its definitions
 shot 5b-antonyms
 
 adb shell input keyevent KEYCODE_BACK # close the word
