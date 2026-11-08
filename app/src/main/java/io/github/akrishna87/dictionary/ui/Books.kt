@@ -412,6 +412,8 @@ private fun DefineSheet(vm: DictionaryViewModel, word: String, onFullEntry: () -
                 entry?.pronunciation?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
             }
             entry?.let { e ->
+                // Up here so a long definition can never push it off the sheet.
+                TextButton(onClick = onFullEntry) { Text("Full entry") }
                 val saved = vm.isSaved(e.word)
                 IconButton(onClick = { vm.toggleSaved(e.word) }) {
                     Icon(
@@ -429,15 +431,14 @@ private fun DefineSheet(vm: DictionaryViewModel, word: String, onFullEntry: () -
             e == null -> Text("“$word” isn't in the dictionary.", color = MaterialTheme.colorScheme.onSurfaceVariant)
             else -> {
                 e.redirectedFrom?.let { Text("Base form of “$it”", color = Palette.Coral) }
-                e.definitions.take(3).forEach { d ->
+                e.definitions.take(2).forEach { d ->
                     Text(
                         (if (d.partOfSpeech.isNotEmpty()) "${d.partOfSpeech}: " else "") + d.text,
                         Modifier.padding(top = 8.dp),
-                        maxLines = 4,
+                        maxLines = 3,
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
-                TextButton(onClick = onFullEntry, Modifier.padding(top = 8.dp)) { Text("Full entry") }
             }
         }
     }
