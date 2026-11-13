@@ -64,6 +64,16 @@ shot 2-search
 tap_text "serendipity"
 wait_for "good luck in making unexpected" 10
 shot 3-word
+wait_for "Read this definition" 5 # a speaker on every definition
+adb shell input tap $(ui | python3 -c "
+import re,sys
+m=re.search(r'content-desc=\"Read aloud\"[^>]*bounds=\"\[(\d+),(\d+)\]\[(\d+),(\d+)\]\"',sys.stdin.read())
+print((int(m[1])+int(m[3]))//2,(int(m[2])+int(m[4]))//2)")
+wait_for "Choose what to hear" 10 # nothing is read until the user picks parts and taps Read
+wait_for "Example sentences" 5
+shot 3b-read-aloud
+tap_text "Cancel"
+wait_for "good luck in making unexpected" 10
 
 adb shell input keyevent KEYCODE_BACK # back to the search screen (a second back would leave the app)
 wait_for "serendip" 10
