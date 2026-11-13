@@ -8,7 +8,6 @@ import android.speech.RecognizerIntent
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import android.speech.tts.TextToSpeech
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -42,6 +41,8 @@ import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.StarBorder
 import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.filled.RecordVoiceOver
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -241,6 +242,10 @@ internal fun WordRow(word: String, icon: ImageVector? = null, onClick: () -> Uni
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 private fun DetailScreen(vm: DictionaryViewModel, detail: Detail) {
+    val speaker = rememberSpeaker()
+    // Nothing is read unless asked, and reading stops when the user moves to another word.
+    val shownWord = (detail as? Detail.Found)?.entry?.word
+    DisposableEffect(shownWord) { onDispose { speaker.stop() } }
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth().padding(4.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = vm::close) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
@@ -248,8 +253,23 @@ private fun DetailScreen(vm: DictionaryViewModel, detail: Detail) {
             if (detail is Detail.Found) {
                 val entry = detail.entry
                 val context = LocalContext.current
-                val speak = rememberSpeaker()
-                IconButton(onClick = { speak(entry.word) }) { Icon(Icons.Default.VolumeUp, "Pronounce") }
+                IconButton(onClick = { speaker.say(entry.word) }) { Icon(Icons.Default.VolumeUp, "Pronounce") }
+                var choosing by remember(entry.word) { mutableStateOf(false) }
+                if (speaker.speaking) {
+                    IconButton(onClick = speaker::stop) { Icon(Icons.Default.Stop, "Stop reading") }
+                } else {
+                    IconButton(onClick = { choosing = true }) { Icon(Icons.Default.RecordVoiceOver, "Read aloud") }
+                }
+                if (choosing) {
+                    ReadAloudDialog(
+                        onRead = { parts ->
+                            choosing = false
+                            val shown = entry.definitions.filter { it.source !in vm.hiddenSources }
+                            speaker.say(readAloudScript(entry, shown, vm.notes[entry.word.lowercase()] ?: "", parts))
+                        },
+                        onDismiss = { choosing = false },
+                    )
+                }
                 IconButton(onClick = { share(context, entry) }) { Icon(Icons.Default.Share, "Share") }
                 var picking by remember(entry.word) { mutableStateOf(false) }
                 IconButton(onClick = { picking = true }) { Icon(Icons.Default.LibraryAdd, "Add to a shelf") }
@@ -267,7 +287,7 @@ private fun DetailScreen(vm: DictionaryViewModel, detail: Detail) {
         when (detail) {
             Detail.Loading -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
             is Detail.Missing -> Missing(vm, detail)
-            is Detail.Found -> Entry(vm, detail.entry)
+            is Detail.Found -> Entry(vm, detail.entry, speaker)
         }
     }
 }
@@ -286,7 +306,7 @@ private fun Missing(vm: DictionaryViewModel, detail: Detail.Missing) {
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-private fun Entry(vm: DictionaryViewModel, entry: WordEntry) {
+private fun Entry(vm: DictionaryViewModel, entry: WordEntry, speaker: Speaker) {
     val present = Source.entries.filter { s -> entry.definitions.any { it.source == s } }
     val shown = entry.definitions.filter { it.source !in vm.hiddenSources }
     var thesaurus by remember(entry.word) { mutableStateOf(false) }
@@ -360,7 +380,7 @@ private fun Entry(vm: DictionaryViewModel, entry: WordEntry) {
                     }
                 }
                 lastPos = d.partOfSpeech
-                item(key = "def-${source.code}-$i") { DefinitionRow(vm, i + 1, d) }
+                item(key = "def-${source.code}-$i") { DefinitionRow(vm, i + 1, d, speaker) }
             }
         }
         item { Spacer(Modifier.height(32.dp)) }
@@ -369,10 +389,11 @@ private fun Entry(vm: DictionaryViewModel, entry: WordEntry) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun DefinitionRow(vm: DictionaryViewModel, number: Int, d: Definition) {
+private fun DefinitionRow(vm: DictionaryViewModel, number: Int, d: Definition, speaker: Speaker) {
+    val context = LocalContext.current
     Row(Modifier.padding(top = 10.dp)) {
         Text("$number.", Modifier.width(28.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Column {
+        Column(Modifier.weight(1f)) {
             Text(d.text, style = MaterialTheme.typography.bodyLarge)
             if (d.example.isNotEmpty()) {
                 Text(
@@ -384,6 +405,14 @@ private fun DefinitionRow(vm: DictionaryViewModel, number: Int, d: Definition) {
             }
             WordChips(vm, "Synonyms", d.synonyms)
             WordChips(vm, "Antonyms", d.antonyms)
+        }
+        // Reads just this definition, plus whichever of its example, synonyms and antonyms
+        // the user last ticked in the Read aloud dialog.
+        IconButton(onClick = {
+            val parts = ReadAloudChoices(context).load() + ReadPart.Definitions
+            speaker.say(definitionScript(d, parts))
+        }) {
+            Icon(Icons.Default.VolumeUp, "Read this definition", tint = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }
@@ -444,19 +473,6 @@ private fun WordChips(vm: DictionaryViewModel, label: String, words: List<String
     FlowRow(Modifier.padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         words.forEach { w -> AssistChip(onClick = { vm.open(w) }, label = { Text(w) }) }
     }
-}
-
-/** Reads a word aloud with the phone's own (offline) text-to-speech voice. */
-@Composable
-private fun rememberSpeaker(): (String) -> Unit {
-    val context = LocalContext.current
-    var tts by remember { mutableStateOf<TextToSpeech?>(null) }
-    DisposableEffect(Unit) {
-        val engine = TextToSpeech(context) { status -> if (status == TextToSpeech.SUCCESS) tts?.language = Locale.US }
-        tts = engine
-        onDispose { engine.shutdown() }
-    }
-    return { word -> tts?.speak(word, TextToSpeech.QUEUE_FLUSH, null, "word") }
 }
 
 private fun share(context: Context, entry: WordEntry) {

@@ -29,6 +29,7 @@ and you can hide a source with its chip.
 - The Library tab also keeps your own word collection: keep words on **shelves** you name ("Exam words", "Book club"…), add a private **note** to any word, **browse the whole dictionary A–Z** like a book, and run quick **flashcard reviews** of your shelved words (five dots show how well you know each one). The star is a one-tap save to the "Saved" shelf.
 - Save words with the star; share a definition; hear a word read aloud with
   the phone's own text-to-speech voice.
+- **Read aloud, only what you pick**: the read-aloud button on a word page lets you tick what to hear (the word, parts of speech, definitions, example sentences, synonyms, antonyms, your note) and remembers your choice; a Stop button appears while it reads. Each definition also has its own speaker to hear just that one. Nothing is read unless you ask, sources you've hidden are skipped, and it uses the phone's offline voice, so still no permissions.
 - Synonyms and antonyms under every definition, plus a **Thesaurus** tab: all synonyms and antonyms of the word, then each sense's similar, broader and narrower terms. Tap any word to jump to it.
 - Select a word in any app and choose **Define** from the text menu.
 
